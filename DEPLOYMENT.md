@@ -1,49 +1,29 @@
-# Deployment Guide: Handling Large Model Files
+# Deployment Guide: Optimized AI Model
 
-Your AI model file (`model.keras`) is **128MB**, which exceeds GitHub's standard **100MB** limit. Follow these steps to ensure the model is available on Render.
+Good news! The AI model has been optimized from **128MB** down to **21.31MB** using TFLite compression.
 
-## Option A: Git LFS (Recommended)
-Git Large File Storage (LFS) allows you to track large files in your repository.
+It now fits under the **25MB** limit, so you can upload it directly to GitHub or Render without complex storage solutions.
 
-1.  **Install Git LFS** (if not already installed):
+## ✅ Project Structure
+Ensure your root directory looks like this:
+- `main.py`
+- `predict.py`
+- `model.tflite` (The optimized model)
+- `requirements.txt`
+- `runtime.txt`
+- `package.json` (Frontend)
+
+## 🚀 Render Settings
+1.  **Start Command**:
     ```bash
-    git lfs install
+    gunicorn main:app
     ```
-2.  **Track the model file**:
+2.  **Build Command**:
     ```bash
-    git lfs track "*.keras"
-    ```
-3.  **Ensure `.gitattributes` is added**:
-    ```bash
-    git add .gitattributes
-    ```
-4.  **Remove from `.gitignore`**: Ensure `*.keras` is NOT in your `.gitignore`.
-5.  **Push to GitHub**:
-    ```bash
-    git add model.keras
-    git commit -m "chore: add model file via Git LFS"
-    git push origin main
+    pip install -r requirements.txt
     ```
 
-## Option B: Download during Build (Alternative)
-If you don't want to use Git LFS, you can host the model on a public URL (Google Drive, Dropbox, S3) and download it during the Render build.
+## 📦 Requirements
+Ensure your `requirements.txt` includes `tensorflow-cpu` (or `tensorflow`). Even though we use `.tflite`, the `tensorflow` package provides the easiest way to run the interpreter in a cloud environment.
 
-1.  Upload `model.keras` to a cloud drive.
-2.  Get a direct download link.
-3.  Modify your Render **Build Command**:
-    ```bash
-    curl -L "YOUR_DOWNLOAD_LINK" -o model.keras && pip install -r requirements.txt
-    ```
-
-## How to Check Status
-After deploying, visit your backend health URL:
-`https://your-app.onrender.com/health`
-
-It should show:
-```json
-{
-  "model_loaded": true,
-  "status": "serving"
-}
-```
-If it shows `model_loaded: false`, verify that `model.keras` is present in the root directory.
+Visit `https://your-app.onrender.com/health` to verify that `model_loaded: true`.

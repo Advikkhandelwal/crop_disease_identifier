@@ -4,29 +4,30 @@ from PIL import Image
 import os
 
 # Root path for deployment
-MODEL_PATH = "model.keras"
+MODEL_PATH = "model.tflite"
 
 # Global model variable
-model = None
+interpreter = None
 model_load_error = None
 
 def get_model():
-    """Lazy loader for the AI model to prevent server crashes if file is missing."""
-    global model, model_load_error
-    if model is not None:
-        return model, None
+    """Lazy loader for the TFLite model."""
+    global interpreter, model_load_error
+    if interpreter is not None:
+        return interpreter, None
     
     if not os.path.exists(MODEL_PATH):
         model_load_error = f"Model file not found at {MODEL_PATH}. See DEPLOYMENT.md for instructions."
         return None, model_load_error
         
     try:
-        print(f"Loading AI model from {MODEL_PATH}...")
-        model = tf.keras.models.load_model(MODEL_PATH)
-        print("Model loaded successfully!")
-        return model, None
+        print(f"Loading TFLite model from {MODEL_PATH}...")
+        interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+        interpreter.allocate_tensors()
+        print("TFLite Model loaded successfully!")
+        return interpreter, None
     except Exception as e:
-        model_load_error = f"Error loading model: {str(e)}"
+        model_load_error = f"Error loading TFLite model: {str(e)}"
         print(model_load_error)
         return None, model_load_error
 
@@ -52,12 +53,14 @@ IMG_SIZE = (224, 224)
 
 def preprocess(image):
     image = image.resize(IMG_SIZE)
-    img = np.array(image)
+    img = np.array(image).astype(np.float32)
+    # Most TFLite models expect 0-1 normalization
+    img = img / 255.0
     img = np.expand_dims(img, axis=0)
     return img
 
 def predict_disease(file):
-    model_instance, error = get_model()
+    interp, error = get_model()
     if error:
         return {"error": error}
 
@@ -65,10 +68,16 @@ def predict_disease(file):
         image = Image.open(file).convert("RGB")
         img = preprocess(image)
 
-        predictions = model_instance.predict(img)
+        input_details = interp.get_input_details()
+        output_details = interp.get_output_details()
 
-        index = np.argmax(predictions[0])
-        confidence = float(np.max(predictions[0]))
+        interp.set_tensor(input_details[0]['index'], img)
+        interp.invoke()
+
+        output_data = interp.get_tensor(output_details[0]['index'])
+        
+        index = np.argmax(output_data[0])
+        confidence = float(np.max(output_data[0]))
 
         disease_name = CLASS_NAMES[index]
         
