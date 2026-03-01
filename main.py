@@ -6,6 +6,13 @@ import os
 app = Flask(__name__)
 CORS(app)
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "message": "Crop Disease Identifier AI Service is running.",
+        "endpoints": ["/health", "/analyze (POST)"]
+    })
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     if "image" not in request.files:
