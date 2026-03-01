@@ -72,7 +72,6 @@ const CameraUpload = ({ onImageCapture, selectedImage, loading }) => {
 
     try {
       const stream = await requestCameraStream();
-      videoRef.current.srcObject = stream;
       streamRef.current = stream;
       setIsCameraActive(true);
     } catch (err) {
@@ -117,6 +116,24 @@ const CameraUpload = ({ onImageCapture, selectedImage, loading }) => {
   const triggerGallery = () => galleryInputRef.current?.click();
 
   useEffect(() => {
+    if (!isCameraActive || !streamRef.current || !videoRef.current) return;
+
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+
+    video
+      .play()
+      .then(() => {
+        setCameraError(null);
+      })
+      .catch((err) => {
+        console.error('Video play error:', err);
+        setCameraError('Camera started but video preview could not play. Refresh and try again.');
+        stopCamera();
+      });
+  }, [isCameraActive]);
+
+  useEffect(() => {
     return () => stopCamera();
   }, []);
 
@@ -125,7 +142,7 @@ const CameraUpload = ({ onImageCapture, selectedImage, loading }) => {
       <div className="preview-area">
         {isCameraActive ? (
           <div className="camera-viewfinder">
-            <video ref={videoRef} autoPlay playsInline className="live-video" />
+            <video ref={videoRef} autoPlay playsInline muted className="live-video" />
             <div className="camera-controls-overlay">
               <button className="capture-trigger" onClick={capturePhoto} disabled={loading}>
                 Capture
