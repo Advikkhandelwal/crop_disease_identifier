@@ -54,8 +54,7 @@ IMG_SIZE = (224, 224)
 def preprocess(image):
     image = image.resize(IMG_SIZE)
     img = np.array(image).astype(np.float32)
-    # Most TFLite models expect 0-1 normalization
-    img = img / 255.0
+    # Reverting to 0-255 scale as used in original training
     img = np.expand_dims(img, axis=0)
     return img
 
