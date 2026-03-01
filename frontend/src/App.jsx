@@ -5,6 +5,10 @@ import './App.css';
 import CameraUpload from './components/CameraUpload';
 import ResultCard from './components/ResultCard';
 import Loader from './components/Loader';
+import ProgressTracker from './components/ProgressTracker';
+import TreatmentScheduler from './components/TreatmentScheduler';
+import WeatherRiskPanel from './components/WeatherRiskPanel';
+import SafetyModePanel from './components/SafetyModePanel';
 
 const API_ENDPOINT = import.meta.env.VITE_API_ENDPOINT || 'http://localhost:5001/analyze';
 
@@ -14,6 +18,28 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [latestProgressEntry, setLatestProgressEntry] = useState(null);
+
+  const createThumbnail = (file) =>
+    new Promise((resolve) => {
+      const imageUrl = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0, size, size);
+        URL.revokeObjectURL(imageUrl);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(imageUrl);
+        resolve(null);
+      };
+      image.src = imageUrl;
+    });
 
   const handleImageCapture = (file, url) => {
     setImageFile(file);
@@ -38,6 +64,16 @@ function App() {
         },
       });
       setResult(response.data);
+
+      const thumbnail = await createThumbnail(imageFile);
+      setLatestProgressEntry({
+        id: crypto.randomUUID(),
+        capturedAt: new Date().toISOString(),
+        disease: response.data?.disease || 'Unknown',
+        severity: response.data?.severity || 'Unknown',
+        confidence: Number(response.data?.confidence || 0),
+        thumbnail,
+      });
     } catch (err) {
       console.error('Analysis failed:', err);
       setError(
@@ -104,6 +140,13 @@ function App() {
       </div>
 
       {loading && <Loader />}
+
+      <section className="feature-panels">
+        <ProgressTracker latestEntry={latestProgressEntry} />
+        <TreatmentScheduler treatment={result?.treatment} />
+        <WeatherRiskPanel disease={result?.disease} severity={result?.severity} />
+        <SafetyModePanel />
+      </section>
 
       <footer>
         <p>Built for practical, field-ready crop diagnosis.</p>
