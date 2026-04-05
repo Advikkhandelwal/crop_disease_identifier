@@ -17,19 +17,67 @@ const CameraUpload = ({ onImageCapture, selectedImage, loading }) => {
     setIsCameraActive(false);
   };
 
+  const getCameraErrorMessage = (err) => {
+    const errorName = err?.name || '';
+
+    if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
+      return 'Camera permission is blocked. Enable camera access for this site in browser settings.';
+    }
+
+    if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+      return 'Camera is already in use by another app or browser tab. Close it and retry.';
+    }
+
+    if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+      return 'No camera device was found on this system.';
+    }
+
+    if (errorName === 'OverconstrainedError' || errorName === 'ConstraintNotSatisfiedError') {
+      return 'Requested camera mode is not available on this device.';
+    }
+
+    if (errorName === 'SecurityError') {
+      return 'Camera is blocked due to browser security policy. Use localhost or HTTPS.';
+    }
+
+    return 'Camera access failed. Please retry or upload a photo.';
+  };
+
+  const requestCameraStream = async () => {
+    const constraintsList = [
+      { video: { facingMode: { ideal: 'environment' } }, audio: false },
+      { video: true, audio: false },
+    ];
+
+    let lastError = null;
+    for (const constraints of constraintsList) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError;
+  };
+
   const startCamera = async () => {
     setCameraError(null);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Camera API is not available in this browser. Please upload a photo.');
+      return;
+    }
+
+    stopCamera();
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false,
-      });
+      const stream = await requestCameraStream();
       videoRef.current.srcObject = stream;
       streamRef.current = stream;
       setIsCameraActive(true);
     } catch (err) {
       console.error('Camera access error:', err);
-      setCameraError('Camera access failed. Please allow camera permission or upload a photo.');
+      setCameraError(getCameraErrorMessage(err));
     }
   };
 
